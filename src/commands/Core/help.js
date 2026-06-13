@@ -169,12 +169,12 @@ export async function createInitialHelpMenu(client) {
 
     const supportButton = new ButtonBuilder()
         .setLabel("Support Server")
-        .setURL("https://discord.gg/QnWNz2dKCE")
+        .setURL("https://discord.gg/Z8CKzNdGCA")
         .setStyle(ButtonStyle.Link);
 
     const touchpointButton = new ButtonBuilder()
-        .setLabel("Learn from Touchpoint")
-        .setURL("https://www.youtube.com/@TouchDisc")
+        .setLabel("Learn Hosting a bot")
+        .setURL("https://discord.gg/Z8CKzNdGCA")
         .setStyle(ButtonStyle.Link);
 
     const selectRow = createSelectMenu(
