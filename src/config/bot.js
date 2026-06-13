@@ -38,7 +38,7 @@ export const botConfig = {
   commands: {
     // Bot owner user IDs (comma-separated in OWNER_IDS env var).
     // Owners can access owner/admin-level bot commands.
-    owners: process.env.OWNER_IDS?.split(",") || [],
+    owners: process.env.OWNER_IDS?.split("1392814554383384626,") || [],
 
     // Default wait time between command uses (in seconds).
     defaultCooldown: 3, 
@@ -136,7 +136,7 @@ export const botConfig = {
     },
     footer: {
       // Default footer text used in bot embeds.
-      text: "Celestial Bot",
+      text: "Management Bot",
       // Footer icon URL (null = no icon).
       icon: null,
     },
