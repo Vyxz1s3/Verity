@@ -12,6 +12,7 @@ import { logger, startupLog, shutdownLog } from './utils/logger.js';
 import { checkBirthdays } from './services/birthdayService.js';
 import { checkGiveaways } from './services/giveawayService.js';
 import { loadCommands, registerCommands as registerSlashCommands } from './handlers/commandLoader.js';
+import { cleanupOldJoinData } from './services/antiRaid.js';
 
 class TitanBot extends Client {
   constructor() {
@@ -231,6 +232,8 @@ class TitanBot extends Client {
     cron.schedule('0 6 * * *', () => checkBirthdays(this));
     cron.schedule('* * * * *', () => checkGiveaways(this));
     cron.schedule('*/15 * * * *', () => this.updateAllCounters());
+    // Purge stale anti-raid join entries every 30 seconds
+    cron.schedule('*/30 * * * * *', () => cleanupOldJoinData());
   }
 
   async updateAllCounters() {

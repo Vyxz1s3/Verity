@@ -7,6 +7,7 @@ import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { getServerCounters, updateCounter } from '../services/serverstatsService.js';
 import { setBirthday as dbSetBirthday } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
+import { recordJoinAndCheck } from '../services/antiRaid.js';
 
 export default {
   name: Events.GuildMemberAdd,
@@ -17,6 +18,23 @@ export default {
         const { guild, user } = member;
         
         const config = await getGuildConfig(member.client, guild.id);
+
+        // ── Anti-raid check ──────────────────────────────────────────────────
+        // Run before welcome/autorole so raiding accounts are handled first.
+        try {
+            const { raidDetected } = await recordJoinAndCheck(member, member.client);
+            if (raidDetected) {
+                // The member was actioned (kicked/banned/timed-out) by the
+                // anti-raid service.  Skip the rest of the join flow.
+                logger.info(
+                    `[AntiRaid] Raid action applied to ${user.tag} (${user.id}) in ${guild.name} — skipping normal join flow.`
+                );
+                return;
+            }
+        } catch (error) {
+            logger.error('[AntiRaid] Error during anti-raid check on member join:', error);
+            // Non-fatal — continue with the normal join flow
+        }
         
         const welcomeConfig = await getWelcomeConfig(member.client, guild.id);
         
