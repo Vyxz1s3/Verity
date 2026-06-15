@@ -63,11 +63,11 @@ export default {
 
             const description = [
                 `The following user has recieved a infraction!`,
-                `:divider: Staff Member: ${staffMember}`,
-                `:divider: Infraction: ${infractionRole}`,
-                `:divider: Reason: ${reason}`,
-                `:divider: Issued By: ${supervisor}`,
-                `:divider: Issued At: ${issuedAt}`
+                `<:arrow:1516172552592949350> Staff Member: ${staffMember}`,
+                `<:arrow:1516172552592949350> Infraction: ${infractionRole}`,
+                `<:arrow:1516172552592949350> Reason: ${reason}`,
+                `<:arrow:1516172552592949350> Issued By: ${supervisor}`,
+                `<:arrow:1516172552592949350> Issued At: ${issuedAt}`
             ].join('\n');
 
             const bannerEmbed = createEmbed({
