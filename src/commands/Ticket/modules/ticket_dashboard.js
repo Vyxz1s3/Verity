@@ -26,43 +26,55 @@ import { getUserTicketCount } from '../../../services/ticket.js';
 
 // ─── Embed & Menu Builders ────────────────────────────────────────────────────
 
+/**
+ * Render a single panel's settings as a compact string for the dashboard embed.
+ */
+function formatPanelSummary(panel, guild) {
+    if (!panel) return '`Not configured`';
+    const cat = panel.categoryId ? guild.channels.cache.get(panel.categoryId) : null;
+    const closedCat = panel.closedCategoryId ? guild.channels.cache.get(panel.closedCategoryId) : null;
+    const role = panel.staffRoleId ? `<@&${panel.staffRoleId}>` : '`None`';
+    const msg = panel.message ? `\`${panel.message.substring(0, 50)}${panel.message.length > 50 ? '…' : ''}\`` : '`Not set`';
+    return [
+        `**Label:** \`${panel.label || 'Create Ticket'}\``,
+        `**Message:** ${msg}`,
+        `**Category:** ${cat ? cat.toString() : '`Not set`'}`,
+        `**Closed Category:** ${closedCat ? closedCat.toString() : '`Not set`'}`,
+        `**Staff Role:** ${role}`,
+        `**Max Tickets:** ${panel.maxTicketsPerUser || 3} | **DM on Close:** ${panel.dmOnClose !== false ? '✅' : '❌'}`,
+    ].join('\n');
+}
+
 function buildDashboardEmbed(config, guild) {
     const panelChannel = config.ticketPanelChannelId ? `<#${config.ticketPanelChannelId}>` : '`Not set`';
-    const staffRole = config.ticketStaffRoleId ? `<@&${config.ticketStaffRoleId}>` : '`Not set`';
     const ticketLogsChannel = config.ticketLogsChannelId ? `<#${config.ticketLogsChannelId}>` : '`Not set`';
     const transcriptChannel = config.ticketTranscriptChannelId ? `<#${config.ticketTranscriptChannelId}>` : '`Not set`';
-    
-    // Get category names from guild
-    const openCategoryChannel = config.ticketCategoryId ? guild.channels.cache.get(config.ticketCategoryId) : null;
-    const openCategory = openCategoryChannel ? openCategoryChannel.toString() : '`Not set`';
-    
-    const closedCategoryChannel = config.ticketClosedCategoryId ? guild.channels.cache.get(config.ticketClosedCategoryId) : null;
-    const closedCategory = closedCategoryChannel ? closedCategoryChannel.toString() : '`Not set`';
 
-    const rawMsg = config.ticketPanelMessage || 'Click the button below to create a support ticket.';
-    const panelMsg = `\`${rawMsg.length > 60 ? rawMsg.substring(0, 60) + '…' : rawMsg}\``;
-    const btnLabel = `\`${config.ticketButtonLabel || 'Create Ticket'}\``;
-
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle('🎫 Ticket System Dashboard')
         .setDescription(`Manage ticket system settings for **${guild.name}**.\nSelect an option below to modify a setting.`)
         .setColor(getColor('info'))
         .addFields(
             { name: '📢 Panel Channel', value: panelChannel, inline: true },
-            { name: '🛡️ Staff Role', value: staffRole, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: '📁 Open Tickets Category', value: openCategory, inline: true },
-            { name: '📂 Closed Tickets Category', value: closedCategory, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: '📝 Panel Message', value: panelMsg, inline: false },
-            { name: '🏷️ Button Label', value: btnLabel, inline: true },
-            { name: '🔢 Max Tickets/User', value: String(config.maxTicketsPerUser || 3), inline: true },
-            { name: '📬 DM on Close', value: config.dmOnClose !== false ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: '🎫 Ticket Logs Channel', value: ticketLogsChannel, inline: true },
+            { name: '🎫 Ticket Logs', value: ticketLogsChannel, inline: true },
             { name: '📜 Transcript Channel', value: transcriptChannel, inline: true },
-        )
+        );
+
+    // Show each panel's configuration
+    for (let i = 1; i <= 3; i++) {
+        const panel = config[`ticketPanel${i}Config`];
+        embed.addFields({
+            name: `${panel ? '✅' : '⬜'} Panel ${i}${panel ? ` — ${panel.label}` : ' (not configured)'}`,
+            value: formatPanelSummary(panel, guild),
+            inline: false,
+        });
+    }
+
+    embed
         .setFooter({ text: 'Select an option below • Dashboard closes after 10 minutes of inactivity' })
         .setTimestamp();
+
+    return embed;
 }
 
 function buildSelectMenu(guildId) {
@@ -70,29 +82,31 @@ function buildSelectMenu(guildId) {
         .setCustomId(`ticket_config_${guildId}`)
         .setPlaceholder('Select a setting to configure...')
         .addOptions(
+            // ── Panel management ──────────────────────────────────────────────
             new StringSelectMenuOptionBuilder()
-                .setLabel('Edit Panel Message')
-                .setDescription('Change the message displayed on the ticket creation panel')
-                .setValue('panel_message')
-                .setEmoji('📝'),
+                .setLabel('Edit Panel 1')
+                .setDescription('Edit the message and label for Panel 1')
+                .setValue('edit_panel_1')
+                .setEmoji('1️⃣'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Edit Button Label')
-                .setDescription('Change the label on the Create Ticket button')
-                .setValue('button_label')
-                .setEmoji('🏷️'),
+                .setLabel('Edit Panel 2')
+                .setDescription('Edit the message and label for Panel 2')
+                .setValue('edit_panel_2')
+                .setEmoji('2️⃣'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Change Open Tickets Category')
-                .setDescription('Category where new tickets are created')
-                .setValue('open_category')
-                .setEmoji('📁'),
+                .setLabel('Edit Panel 3')
+                .setDescription('Edit the message and label for Panel 3')
+                .setValue('edit_panel_3')
+                .setEmoji('3️⃣'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Change Closed Tickets Category')
-                .setDescription('Category where closed tickets are moved')
-                .setValue('closed_category')
-                .setEmoji('📂'),
+                .setLabel('Delete a Panel')
+                .setDescription('Remove Panel 2 or Panel 3 from the dropdown')
+                .setValue('delete_panel')
+                .setEmoji('🗑️'),
+            // ── Global settings ───────────────────────────────────────────────
             new StringSelectMenuOptionBuilder()
                 .setLabel('Set Max Tickets per User')
-                .setDescription('Limit how many open tickets one user can have at once')
+                .setDescription('Limit how many open tickets one user can have at once (Panel 1 default)')
                 .setValue('max_tickets')
                 .setEmoji('🔢'),
             new StringSelectMenuOptionBuilder()
@@ -113,13 +127,13 @@ function buildButtonRow(guildConfig, guildId, disabled = false) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`ticket_cfg_dm_toggle_${guildId}`)
-            .setLabel('DM on Close')
+            .setLabel('DM on Close (P1)')
             .setStyle(dmEnabled ? ButtonStyle.Success : ButtonStyle.Danger)
             .setEmoji(dmEnabled ? '📬' : '📭')
             .setDisabled(disabled),
         new ButtonBuilder()
             .setCustomId(`ticket_cfg_staff_role_btn_${guildId}`)
-            .setLabel('Staff Role')
+            .setLabel('Staff Role (P1)')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('🛡️')
             .setDisabled(disabled),
@@ -144,6 +158,31 @@ async function refreshDashboard(rootInteraction, guildConfig, guildId) {
 }
 
 /**
+ * Build the panel dropdown from all configured panels (mirrors ticket.js helper).
+ * Uses the StringSelectMenuBuilder / StringSelectMenuOptionBuilder already imported
+ * at the top of this file.
+ */
+function buildLivePanelDropdown(config) {
+    const menu = new StringSelectMenuBuilder()
+        .setCustomId('ticket_panel_select')
+        .setPlaceholder('Select a ticket type to open…');
+
+    for (let i = 1; i <= 3; i++) {
+        const panel = config[`ticketPanel${i}Config`];
+        if (!panel) continue;
+        menu.addOptions(
+            new StringSelectMenuOptionBuilder()
+                .setLabel(panel.label || `Panel ${i}`)
+                .setDescription((panel.message || '').substring(0, 100) || `Open a ${panel.label || `Panel ${i}`} ticket`)
+                .setValue(`panel${i}`)
+                .setEmoji('🎫'),
+        );
+    }
+
+    return new ActionRowBuilder().addComponents(menu);
+}
+
+/**
  * Attempts to find and edit the live ticket panel message in the panel channel.
  * Returns true if the panel was found and updated, false otherwise.
  */
@@ -158,24 +197,23 @@ async function updateLivePanel(client, guild, config) {
             m =>
                 m.author.id === client.user.id &&
                 m.components?.length > 0 &&
-                m.components[0]?.components?.[0]?.customId === 'create_ticket',
+                (m.components[0]?.components?.[0]?.customId === 'ticket_panel_select' ||
+                    m.components[0]?.components?.[0]?.customId === 'create_ticket'),
         );
         if (!panelMsg) return false;
 
+        const description =
+            config.ticketPanel1Config?.message ||
+            config.ticketPanelMessage ||
+            'Select a ticket type below to open a support ticket.';
+
         const updatedEmbed = new EmbedBuilder()
             .setTitle('🎫 Support Tickets')
-            .setDescription(config.ticketPanelMessage || 'Click the button below to create a support ticket.')
+            .setDescription(description)
             .setColor(getColor('info'));
 
-        const button = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('create_ticket')
-                .setLabel(config.ticketButtonLabel || 'Create Ticket')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji('📩'),
-        );
-
-        await panelMsg.edit({ embeds: [updatedEmbed], components: [button] });
+        const dropdownRow = buildLivePanelDropdown(config);
+        await panelMsg.edit({ embeds: [updatedEmbed], components: [dropdownRow] });
         return true;
     } catch (error) {
         logger.warn('Failed to update live ticket panel:', error.message);
@@ -236,11 +274,35 @@ export default {
                 const selectedOption = selectInteraction.values[0];
                 try {
                     switch (selectedOption) {
+                        // ── Per-panel editing ─────────────────────────────────
+                        case 'edit_panel_1':
+                            await handleEditPanel(selectInteraction, interaction, guildConfig, guildId, client, 1);
+                            break;
+                        case 'edit_panel_2':
+                            await handleEditPanel(selectInteraction, interaction, guildConfig, guildId, client, 2);
+                            break;
+                        case 'edit_panel_3':
+                            await handleEditPanel(selectInteraction, interaction, guildConfig, guildId, client, 3);
+                            break;
+                        case 'delete_panel':
+                            await handleDeletePanel(selectInteraction, interaction, guildConfig, guildId, client);
+                            break;
+                        // ── Global settings ───────────────────────────────────
+                        case 'max_tickets':
+                            await handleMaxTickets(selectInteraction, interaction, guildConfig, guildId, client);
+                            break;
+                        case 'logs_channel':
+                            await handleLogsChannel(selectInteraction, interaction, guildConfig, guildId, client);
+                            break;
+                        case 'transcript_channel':
+                            await handleTranscriptChannel(selectInteraction, interaction, guildConfig, guildId, client);
+                            break;
+                        // ── Legacy fallbacks (kept for backwards compat) ──────
                         case 'panel_message':
-                            await handlePanelMessage(selectInteraction, interaction, guildConfig, guildId, client);
+                            await handleEditPanel(selectInteraction, interaction, guildConfig, guildId, client, 1);
                             break;
                         case 'button_label':
-                            await handleButtonLabel(selectInteraction, interaction, guildConfig, guildId, client);
+                            await handleEditPanel(selectInteraction, interaction, guildConfig, guildId, client, 1);
                             break;
                         case 'staff_role':
                             await handleStaffRole(selectInteraction, interaction, guildConfig, guildId, client);
@@ -250,15 +312,6 @@ export default {
                             break;
                         case 'closed_category':
                             await handleClosedCategory(selectInteraction, interaction, guildConfig, guildId, client);
-                            break;
-                        case 'max_tickets':
-                            await handleMaxTickets(selectInteraction, interaction, guildConfig, guildId, client);
-                            break;
-                        case 'logs_channel':
-                            await handleLogsChannel(selectInteraction, interaction, guildConfig, guildId, client);
-                            break;
-                        case 'transcript_channel':
-                            await handleTranscriptChannel(selectInteraction, interaction, guildConfig, guildId, client);
                             break;
                     }
                 } catch (error) {
@@ -339,7 +392,184 @@ export default {
     },
 };
 
-// ─── Panel Message ────────────────────────────────────────────────────────────
+// ─── Edit Panel (multi-panel) ─────────────────────────────────────────────────
+
+async function handleEditPanel(selectInteraction, rootInteraction, guildConfig, guildId, client, panelNumber) {
+    const panelKey = `ticketPanel${panelNumber}Config`;
+    const existing = guildConfig[panelKey] || {};
+
+    const modal = new ModalBuilder()
+        .setCustomId(`ticket_cfg_edit_panel_${panelNumber}`)
+        .setTitle(`Edit Panel ${panelNumber}`)
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('panel_label_input')
+                    .setLabel('Dropdown Label (max 80 chars)')
+                    .setStyle(TextInputStyle.Short)
+                    .setValue(existing.label || 'Create Ticket')
+                    .setMaxLength(80)
+                    .setMinLength(1)
+                    .setRequired(true)
+                    .setPlaceholder('e.g. General Support'),
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('panel_msg_input')
+                    .setLabel('Panel Embed Message (max 2000 chars)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setValue(existing.message || 'Click the dropdown below to open a support ticket.')
+                    .setMaxLength(2000)
+                    .setMinLength(1)
+                    .setRequired(true)
+                    .setPlaceholder('Describe what this ticket type is for…'),
+            ),
+        );
+
+    await selectInteraction.showModal(modal);
+
+    const submitted = await selectInteraction
+        .awaitModalSubmit({
+            filter: i =>
+                i.customId === `ticket_cfg_edit_panel_${panelNumber}` &&
+                i.user.id === selectInteraction.user.id,
+            time: 120_000,
+        })
+        .catch(() => null);
+
+    if (!submitted) return;
+
+    const newLabel   = submitted.fields.getTextInputValue('panel_label_input').trim();
+    const newMessage = submitted.fields.getTextInputValue('panel_msg_input').trim();
+
+    // Preserve all other panel settings, only update label + message
+    guildConfig[panelKey] = {
+        ...existing,
+        label:   newLabel,
+        message: newMessage,
+    };
+
+    // Mirror panel-1 changes to legacy flat fields
+    if (panelNumber === 1) {
+        guildConfig.ticketPanelMessage = newMessage;
+        guildConfig.ticketButtonLabel  = newLabel;
+    }
+
+    await client.db.set(getGuildConfigKey(guildId), guildConfig);
+
+    const panelUpdated = await updateLivePanel(client, rootInteraction.guild, guildConfig);
+
+    await submitted.reply({
+        embeds: [
+            successEmbed(
+                `✅ Panel ${panelNumber} Updated`,
+                `Label set to \`${newLabel}\` and message updated.${
+                    panelUpdated
+                        ? '\nThe live ticket panel dropdown has also been refreshed.'
+                        : '\n> **Note:** The live panel could not be located. Changes will apply the next time you run `/ticket setup`.'
+                }`,
+            ),
+        ],
+        flags: MessageFlags.Ephemeral,
+    });
+
+    await refreshDashboard(rootInteraction, guildConfig, guildId);
+}
+
+// ─── Delete Panel ─────────────────────────────────────────────────────────────
+
+async function handleDeletePanel(selectInteraction, rootInteraction, guildConfig, guildId, client) {
+    await selectInteraction.deferUpdate();
+
+    // Build a select menu listing only panels 2 and 3 (panel 1 cannot be deleted)
+    const deletableOptions = [];
+    for (const n of [2, 3]) {
+        const panel = guildConfig[`ticketPanel${n}Config`];
+        if (panel) {
+            deletableOptions.push(
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(`Panel ${n} — ${panel.label}`)
+                    .setDescription(`Remove Panel ${n} from the dropdown`)
+                    .setValue(`delete_panel_${n}`)
+                    .setEmoji('🗑️'),
+            );
+        }
+    }
+
+    if (deletableOptions.length === 0) {
+        await selectInteraction.followUp({
+            embeds: [errorEmbed('No Panels to Delete', 'There are no additional panels (2 or 3) configured. Panel 1 cannot be deleted here — use **Delete System** to remove everything.')],
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+
+    const deleteMenu = new StringSelectMenuBuilder()
+        .setCustomId(`ticket_cfg_delete_panel_select_${guildId}`)
+        .setPlaceholder('Select a panel to delete…')
+        .addOptions(deletableOptions);
+
+    await selectInteraction.followUp({
+        embeds: [
+            new EmbedBuilder()
+                .setTitle('🗑️ Delete a Panel')
+                .setDescription('Select which panel to remove from the dropdown. **Panel 1 cannot be deleted here.**')
+                .setColor(getColor('error')),
+        ],
+        components: [new ActionRowBuilder().addComponents(deleteMenu)],
+        flags: MessageFlags.Ephemeral,
+    });
+
+    const deleteCollector = rootInteraction.channel.createMessageComponentCollector({
+        componentType: ComponentType.StringSelect,
+        filter: i =>
+            i.user.id === selectInteraction.user.id &&
+            i.customId === `ticket_cfg_delete_panel_select_${guildId}`,
+        time: 60_000,
+        max: 1,
+    });
+
+    deleteCollector.on('collect', async deleteInteraction => {
+        await deleteInteraction.deferUpdate();
+        const choice = deleteInteraction.values[0]; // e.g. 'delete_panel_2'
+        const panelNum = parseInt(choice.replace('delete_panel_', ''), 10);
+        const panelKey = `ticketPanel${panelNum}Config`;
+
+        delete guildConfig[panelKey];
+        await client.db.set(getGuildConfigKey(guildId), guildConfig);
+
+        const panelUpdated = await updateLivePanel(client, rootInteraction.guild, guildConfig);
+
+        await deleteInteraction.followUp({
+            embeds: [
+                successEmbed(
+                    `✅ Panel ${panelNum} Deleted`,
+                    `Panel ${panelNum} has been removed.${
+                        panelUpdated
+                            ? '\nThe live ticket panel dropdown has been updated.'
+                            : '\n> **Note:** The live panel could not be located. Changes will apply the next time you run `/ticket setup`.'
+                    }`,
+                ),
+            ],
+            flags: MessageFlags.Ephemeral,
+        });
+
+        await refreshDashboard(rootInteraction, guildConfig, guildId);
+    });
+
+    deleteCollector.on('end', (collected, reason) => {
+        if (reason === 'time' && collected.size === 0) {
+            selectInteraction
+                .followUp({
+                    embeds: [errorEmbed('Timed Out', 'No panel was selected. No changes were made.')],
+                    flags: MessageFlags.Ephemeral,
+                })
+                .catch(() => {});
+        }
+    });
+}
+
+// ─── Panel Message (legacy — kept for backwards compatibility) ────────────────
 
 async function handlePanelMessage(selectInteraction, rootInteraction, guildConfig, guildId, client) {
     const modal = new ModalBuilder()
@@ -376,6 +606,10 @@ async function handlePanelMessage(selectInteraction, rootInteraction, guildConfi
 
     const newMessage = submitted.fields.getTextInputValue('panel_msg_input').trim();
     guildConfig.ticketPanelMessage = newMessage;
+    // Keep panel 1 config in sync
+    if (guildConfig.ticketPanel1Config) {
+        guildConfig.ticketPanel1Config = { ...guildConfig.ticketPanel1Config, message: newMessage };
+    }
     await client.db.set(getGuildConfigKey(guildId), guildConfig);
 
     const panelUpdated = await updateLivePanel(client, rootInteraction.guild, guildConfig);
@@ -431,6 +665,10 @@ async function handleButtonLabel(selectInteraction, rootInteraction, guildConfig
 
     const newLabel = submitted.fields.getTextInputValue('btn_label_input').trim();
     guildConfig.ticketButtonLabel = newLabel;
+    // Keep panel 1 config in sync
+    if (guildConfig.ticketPanel1Config) {
+        guildConfig.ticketPanel1Config = { ...guildConfig.ticketPanel1Config, label: newLabel };
+    }
     await client.db.set(getGuildConfigKey(guildId), guildConfig);
 
     const panelUpdated = await updateLivePanel(client, rootInteraction.guild, guildConfig);
@@ -968,6 +1206,10 @@ async function handleDeleteSystem(btnInteraction, rootInteraction, guildConfig, 
         'ticketButtonLabel',
         'maxTicketsPerUser',
         'dmOnClose',
+        // Multi-panel configs
+        'ticketPanel1Config',
+        'ticketPanel2Config',
+        'ticketPanel3Config',
     ];
 
     // Delete the panel embed from Discord
@@ -984,7 +1226,8 @@ async function handleDeleteSystem(btnInteraction, rootInteraction, guildConfig, 
                     if (messages) {
                         const found = messages.find(
                             m => m.author.id === client.user.id &&
-                                m.components?.[0]?.components?.[0]?.customId === 'create_ticket'
+                                (m.components?.[0]?.components?.[0]?.customId === 'ticket_panel_select' ||
+                                    m.components?.[0]?.components?.[0]?.customId === 'create_ticket')
                         );
                         if (found) await found.delete().catch(() => {});
                     }
