@@ -1,43 +1,64 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+import { SlashCommandBuilder } from 'discord.js';
+import { successEmbed } from '../../utils/embeds.js';
+import { logger } from '../../utils/logger.js';
+import { handleInteractionError } from '../../utils/errorHandler.js';
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('promote')
-    .setDescription('Promote a member to a higher rank')
-    .addUserOption(option => 
-      option.setName('user')
-            .setDescription('The user to promote')
-            .setRequired(true))
-    .addStringOption(option => 
-      option.setName('oldrank')
-            .setDescription('The user’s current rank')
-            .setRequired(true))
-    .addStringOption(option => 
-      option.setName('newrank')
-            .setDescription('The user’s new rank')
-            .setRequired(true))
-    .addStringOption(option => 
-      option.setName('reason')
-            .setDescription('Reason for promotion')
-            .setRequired(true)),
+export default {
+    data: new SlashCommandBuilder()
+        .setName("promote")
+        .setDescription("Log a member promotion")
+        .addUserOption(option =>
+            option
+                .setName("target")
+                .setDescription("The member being promoted")
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName("old_rank")
+                .setDescription("Previous rank")
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName("new_rank")
+                .setDescription("New rank")
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName("reason")
+                .setDescription("Reason for promotion")
+                .setRequired(true)
+        ),
 
-  async execute(interaction) {
-    const user = interaction.options.getUser('user');
-    const oldRank = interaction.options.getString('oldrank');
-    const newRank = interaction.options.getString('newrank');
-    const reason = interaction.options.getString('reason');
+    category: "moderation",
 
-    const embed = new EmbedBuilder()
-      .setTitle('Promotion')
-      .addFields([
-        { name: 'User', value: user.tag, inline: true },
-        { name: 'Old Rank', value: oldRank, inline: true },
-        { name: 'New Rank', value: newRank, inline: true },
-        { name: 'Reason', value: reason, inline: false },
-      ])
-      .setColor('BLUE')
-      .setFooter({ text: `Promoted by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() });
+    async execute(interaction, config, client) {
+        try {
+            const target = interaction.options.getUser("target");
+            const oldRank = interaction.options.getString("old_rank");
+            const newRank = interaction.options.getString("new_rank");
+            const reason = interaction.options.getString("reason");
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
-  },
-};
+            await interaction.reply({
+                embeds: [
+                    successEmbed(
+                        "📈 Promotion Logged",
+                        `**Member:** ${target}\n` +
+                        `**Previous Rank:** ${oldRank}\n` +
+                        `**New Rank:** ${newRank}\n` +
+                        `**Reason:** ${reason}\n` +
+                        `**Promoted By:** ${interaction.user}`
+                    )
+                ]
+            });
+
+        } catch (error) {
+            logger.error('Promote command error:', error);
+            await handleInteractionError(interaction, error, {
+                subtype: 'promotion_failed'
+            });
+        }
+    },
+};export default {
