@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed } from '../../utils/embeds.js';
+import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -77,21 +77,16 @@ export default {
                 `<:arrow:1516172552592949350> Issued At: ${issuedAt}`
             ].join('\n');
 
-            const bannerEmbed = createEmbed({
-                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
-                color: 'success',
-                timestamp: false
-            });
-
             const embed = createEmbed({
                 title: '🎉 STAFF PROMOTION 🎉',
                 description,
                 color: 'success',
-                thumbnail: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
+                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
+                thumbnail: 'https://cdn.discordapp.com/attachments/1516147294708170923/1516170857456603178/image.png?ex=6a31aba5&is=6a305a25&hm=30778fe62ec9c53307bcc806ceb494d75ba1333787b2bfccb6bea208dd372d45',
                 timestamp: true
             });
 
-            await interaction.channel.send({ embeds: [bannerEmbed, embed] });
+            await interaction.channel.send({ embeds: [embed] });
 
             await InteractionHelper.safeEditReply(interaction, {
                 content: '✅ Promotion notice posted successfully!'
