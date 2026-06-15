@@ -71,15 +71,21 @@ export default {
                 `*Issued by California State Roleplay Management.*`
             ].join('\n');
 
+            const bannerEmbed = createEmbed({
+                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516162282663710730/Copy_of_Copy_of_Copy_of_Free_Release_Banner.png?ex=6a31a3a9&is=6a305229&hm=80d58b0354ff30b5d39c47d68b2cb2c8f965546929a9797b3de92cc7666a622b',
+                color: 'primary',
+                timestamp: false
+            });
+
             const embed = createEmbed({
                 title: '🏖️ STAFF RETIREMENT NOTICE 🏖️',
                 description,
                 color: 'primary',
-                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516162282663710730/Copy_of_Copy_of_Copy_of_Free_Release_Banner.png?ex=6a31a3a9&is=6a305229&hm=80d58b0354ff30b5d39c47d68b2cb2c8f965546929a9797b3de92cc7666a622b',
+                thumbnail: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516162282663710730/Copy_of_Copy_of_Copy_of_Free_Release_Banner.png?ex=6a31a3a9&is=6a305229&hm=80d58b0354ff30b5d39c47d68b2cb2c8f965546929a9797b3de92cc7666a622b',
                 timestamp: true
             });
 
-            await interaction.channel.send({ embeds: [embed] });
+            await interaction.channel.send({ embeds: [bannerEmbed, embed] });
 
             await InteractionHelper.safeEditReply(interaction, {
                 content: '✅ Retirement notice posted successfully!'

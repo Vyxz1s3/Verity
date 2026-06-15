@@ -70,15 +70,21 @@ export default {
                 `*Issued by California State Roleplay Management.*`
             ].join('\n');
 
+            const bannerEmbed = createEmbed({
+                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
+                color: 'success',
+                timestamp: false
+            });
+
             const embed = createEmbed({
                 title: '🎉 STAFF PROMOTION 🎉',
                 description,
                 color: 'success',
-                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
+                thumbnail: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
                 timestamp: true
             });
 
-            await interaction.channel.send({ embeds: [embed] });
+            await interaction.channel.send({ embeds: [bannerEmbed, embed] });
 
             await InteractionHelper.safeEditReply(interaction, {
                 content: '✅ Promotion notice posted successfully!'
