@@ -62,13 +62,11 @@ export default {
             }).replace(',', '').replace(/(\d{4}),/, '$1 at');
 
             const description = [
-                `━━━━━━━━━━━━━━━━━━`,
-                `Staff Member: ${staffMember}`,
-                `Infraction: ${infractionRole}`,
-                `Reason: ${reason}`,
-                `Issued By: ${supervisor}`,
-                `Issued At: ${issuedAt}`,
-                `━━━━━━━━━━━━━━━━━━`
+                `<:arrow:1516172552592949350> Staff Member: ${staffMember}`,
+                `<:arrow:1516172552592949350> Infraction: ${infractionRole}`,
+                `<:arrow:1516172552592949350> Reason: ${reason}`,
+                `<:arrow:1516172552592949350> Issued By: ${supervisor}`,
+                `<:arrow:1516172552592949350> Issued At: ${issuedAt}`
             ].join('\n');
 
             const embed = createEmbed({
