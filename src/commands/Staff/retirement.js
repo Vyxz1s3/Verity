@@ -59,20 +59,14 @@ export default {
             });
 
             const description = [
-                `**Staff Member:** ${staffMember}`,
-                `**Final Rank:** ${finalRank}`,
-                `**Reason:** ${reason}`,
-                `**Date Retired:** ${date}`,
-                ``,
-                `We would like to thank **${staffMember.username}** for their dedication and service to California State Roleplay. We wish them all the best in their future endeavors.`,
-                ``,
-                `**Retirement Approved By:** ${supervisor}`,
-                ``,
-                `*Issued by California State Roleplay Management.*`
+                `<:arrow:1516172552592949350> **Staff Member:** ${staffMember}`,
+                `<:arrow:1516172552592949350> **Final Rank:** ${finalRank}`,
+                `<:arrow:1516172552592949350> **Reason:** ${reason}`,
+                `<:arrow:1516172552592949350> **Issued By:** ${supervisor}`,
+                `<:arrow:1516172552592949350> **Issued At:** ${date}`
             ].join('\n');
 
             const embed = createEmbed({
-                title: '🏖️ STAFF RETIREMENT NOTICE 🏖️',
                 description,
                 color: 'primary',
                 image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516162282663710730/Copy_of_Copy_of_Copy_of_Free_Release_Banner.png?ex=6a31a3a9&is=6a305229&hm=80d58b0354ff30b5d39c47d68b2cb2c8f965546929a9797b3de92cc7666a622b',
