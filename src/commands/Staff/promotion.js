@@ -70,11 +70,11 @@ export default {
 
             const description = [
                 `Congratulations, ${staffMember}! you've been promoted for the hard work you brought inside of California State Roleplay!`,
-                `:divider: Staff Member: ${staffMember}`,
-                `:divider: Promoted To: ${newRank}`,
-                `:divider: Reason: ${reason}`,
-                `:divider: Issued By: ${supervisor}`,
-                `:divider: Issued At: ${issuedAt}`
+                `<:arrow:1516172552592949350> Staff Member: ${staffMember}`,
+                `<:arrow:1516172552592949350> Promoted To: ${newRank}`,
+                `<:arrow:1516172552592949350> Reason: ${reason}`,
+                `<:arrow:1516172552592949350> Issued By: ${supervisor}`,
+                `<:arrow:1516172552592949350> Issued At: ${issuedAt}`
             ].join('\n');
 
             const bannerEmbed = createEmbed({
