@@ -140,6 +140,13 @@ export async function loadCommands(client) {
 
 
 export async function registerCommands(client, guildId) {
+    // Accept either a single guild ID string or an array of guild IDs
+    const guildIds = Array.isArray(guildId)
+        ? guildId
+        : guildId
+            ? [guildId]
+            : [];
+
     try {
         const commands = [];
         let totalSubcommands = 0;
@@ -172,9 +179,9 @@ const registeredNames = new Set();
         
         const totalCommandsWithSubs = commands.length + totalSubcommands;
         
-        if (guildId) {
+        if (guildIds.length > 0) {
             
-            logger.info(`Preparing to register ${totalCommandsWithSubs} commands for guild ${guildId}`);
+            logger.info(`Preparing to register ${totalCommandsWithSubs} commands for ${guildIds.length} guild(s): ${guildIds.join(', ')}`);
             
             logger.info('Validating commands before registration...');
             
@@ -240,11 +247,6 @@ const registeredNames = new Set();
             
             logger.info('Command validation passed');
             
-            const guild = await client.guilds.fetch(guildId);
-            
-            const existingCommands = await guild.commands.fetch();
-            logger.info(`Found ${existingCommands.size} existing guild commands`);
-            
             const MAX_COMMANDS = 100;
             let commandsToRegister = commands;
             
@@ -253,43 +255,52 @@ const registeredNames = new Set();
                 commandsToRegister = commands.slice(0, MAX_COMMANDS);
                 logger.info(`Truncated to ${commandsToRegister.length} commands for registration`);
             }
-            
-            if (process.env.NODE_ENV !== 'production') {
-                logger.info(`Registering ${totalCommandsWithSubs} commands for guild ${guild.name} (${guild.id})`);
-            }
-            
-            try {
-                logger.info(`Registering ${commandsToRegister.length} new commands...`);
+
+            for (const id of guildIds) {
+                const guild = await client.guilds.fetch(id);
                 
-                await guild.commands.set(commandsToRegister);
+                const existingCommands = await guild.commands.fetch();
+                logger.info(`Found ${existingCommands.size} existing guild commands for ${guild.name} (${guild.id})`);
                 
-                logger.info(`Successfully registered ${commandsToRegister.length} guild commands`);
-                
-                const registeredCommands = await guild.commands.fetch();
-                if (registeredCommands.size !== commandsToRegister.length) {
-                    logger.warn(`Warning: Expected ${commandsToRegister.length} commands, but Discord reports ${registeredCommands.size} registered`);
-                } else {
-                    logger.info(`Verification passed: ${registeredCommands.size} commands successfully registered`);
+                if (process.env.NODE_ENV !== 'production') {
+                    logger.info(`Registering ${totalCommandsWithSubs} commands for guild ${guild.name} (${guild.id})`);
                 }
                 
-            } catch (error) {
-                logger.error('Failed to register commands:', error);
-                
-                if (existingCommands.size > 0) {
-                    logger.info('Attempting to restore previous commands due to registration failure...');
-                    try {
-                        await guild.commands.set(existingCommands.map(cmd => cmd));
-                        logger.info('Successfully restored previous commands');
-                    } catch (restoreError) {
-                        logger.error('Failed to restore previous commands:', restoreError);
+                try {
+                    logger.info(`Registering ${commandsToRegister.length} new commands for guild ${guild.name} (${guild.id})...`);
+                    
+                    await guild.commands.set(commandsToRegister);
+                    
+                    logger.info(`Successfully registered ${commandsToRegister.length} guild commands for ${guild.name} (${guild.id})`);
+                    
+                    const registeredCommands = await guild.commands.fetch();
+                    if (registeredCommands.size !== commandsToRegister.length) {
+                        logger.warn(`Warning: Expected ${commandsToRegister.length} commands, but Discord reports ${registeredCommands.size} registered for ${guild.name} (${guild.id})`);
+                    } else {
+                        logger.info(`Verification passed: ${registeredCommands.size} commands successfully registered for ${guild.name} (${guild.id})`);
                     }
+                    
+                } catch (error) {
+                    logger.error(`Failed to register commands for guild ${guild.name} (${guild.id}):`, error);
+                    
+                    if (existingCommands.size > 0) {
+                        logger.info('Attempting to restore previous commands due to registration failure...');
+                        try {
+                            await guild.commands.set(existingCommands.map(cmd => cmd));
+                            logger.info('Successfully restored previous commands');
+                        } catch (restoreError) {
+                            logger.error('Failed to restore previous commands:', restoreError);
+                        }
+                    }
+                    
+                    throw error;
                 }
-                
-                throw error;
             }
         } else {
             logger.info('Skipping global command registration - bot is guild-only');
         }
+
+
     } catch (error) {
         logger.error('Error registering commands:', error);
         throw error;

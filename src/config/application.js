@@ -28,7 +28,14 @@ const appConfig = {
     ...botConfig,
     token: process.env.DISCORD_TOKEN || process.env.TOKEN,
     clientId: process.env.CLIENT_ID,
-    guildId: process.env.GUILD_ID,
+    guildId: process.env.GUILD_IDS
+      ? process.env.GUILD_IDS.split(',').map(id => id.trim())[0]
+      : process.env.GUILD_ID,
+    guildIds: process.env.GUILD_IDS
+      ? process.env.GUILD_IDS.split(',').map(id => id.trim())
+      : process.env.GUILD_ID
+        ? [process.env.GUILD_ID]
+        : [],
 
     shop: {
       ...botConfig.shop,
