@@ -29,12 +29,12 @@ export default {
         }
 
         try {
-            // Admin-only
-            if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+            // Moderator-only
+            if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
                 return InteractionHelper.safeEditReply(interaction, {
                     embeds: [
                         errorEmbed(
-                            'You need **Manage Server** permissions to wipe shift data.'
+                            'You need **Moderator** permissions to wipe shift data.'
                         ),
                     ],
                 });
