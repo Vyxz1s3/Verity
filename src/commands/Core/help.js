@@ -122,7 +122,7 @@ export async function createInitialHelpMenu(client) {
         },
         {
             name: "👥 **Community**",
-            value: "Community tools, applications, and member engagement",
+            value: "Community tools and member engagement",
             inline: true
         },
         {
