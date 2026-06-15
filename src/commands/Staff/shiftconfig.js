@@ -55,7 +55,7 @@ export default {
 
                 const embed = createEmbed({
                     title: '⚙️ Shift Role Configured',
-                    description: `The shift role has been set to ${role}.\n\nMembers with this role can now use \`/shift start\`, \`/shift stop\`, and \`/shift break\`.`,
+                    description: `The shift role has been set to ${role}.\n\nMembers with this role can now use \`/shift\` to open the shift management panel.`,
                     color: 'success',
                     fields: [
                         { name: 'Role', value: role.toString(), inline: true },
