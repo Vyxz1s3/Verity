@@ -1,5 +1,13 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import {
+    SlashCommandBuilder,
+    MessageFlags,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -68,30 +76,61 @@ export default {
                 hour12: true
             }).replace(',', '').replace(/(\d{4}),/, '$1 at');
 
-            const description = [
-                `### 〔 🎖️ 〕 Congratulations on your Promotion!`,
-                ``,
-                `${staffMember} has demonstrated outstanding dedication and performance within the Califirnia State Roleplay Staff Division. It is with great pleasure that we announce the following promotion.`,
-                ``,
-                `**— Promotion Details —**`,
-                ``,
-                `> <:arrow:1516172552592949350> **Staff Member** ・ ${staffMember}`,
-                `> <:arrow:1516172552592949350> **Previous Rank** ・ ${oldRank}`,
-                `> <:arrow:1516172552592949350> **Promoted To** ・ ${newRank}`,
-                `> <:arrow:1516172552592949350> **Reason** ・ ${reason}`,
-                `> <:arrow:1516172552592949350> **Issued By** ・ ${supervisor}`,
-                `> <:arrow:1516172552592949350> **Issued At** ・ ${issuedAt}`,
-            ].join('\n');
+            const container = new ContainerBuilder()
+                .setAccentColor(0x1a1a1a)
+                .addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL(
+                            'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7'
+                        )
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `### 〔 🎖️ 〕 Congratulations on your Promotion!`
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `${staffMember} has demonstrated outstanding dedication and performance within the Califirnia State Roleplay Staff Division. It is with great pleasure that we announce the following promotion.`
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        [
+                            `**— Promotion Details —**`,
+                            ``,
+                            `<:arrow:1516172552592949350> **Staff Member** ・ ${staffMember}`,
+                            `<:arrow:1516172552592949350> **Previous Rank** ・ ${oldRank}`,
+                            `<:arrow:1516172552592949350> **Promoted To** ・ ${newRank}`,
+                            `<:arrow:1516172552592949350> **Reason** ・ ${reason}`,
+                            `<:arrow:1516172552592949350> **Issued By** ・ ${supervisor}`,
+                            `<:arrow:1516172552592949350> **Issued At** ・ ${issuedAt}`,
+                        ].join('\n')
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `-# ⭐ Califirnia State Roleplay  •  Staff Division`
+                    )
+                );
 
-            const embed = createEmbed({
-                description,
-                color: 0x1a1a1a,
-                footer: '⭐ Califirnia State Roleplay  •  Staff Division',
-                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516161046790930554/Copy_of_Free_Release_Banner_1.png?ex=6a31a282&is=6a305102&hm=2c65693227f03abed5e168f188d8cc0ae0dde1716245cd6e37dc0892866430b7',
-                timestamp: true
+            await interaction.channel.send({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2,
             });
-
-            await interaction.channel.send({ embeds: [embed] });
 
             // Fetch the staff member as a GuildMember to perform role operations
             const staffMemberGuildMember = await interaction.guild.members.fetch(staffMember.id);
