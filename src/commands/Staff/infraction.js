@@ -1,5 +1,13 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import {
+    SlashCommandBuilder,
+    MessageFlags,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -61,31 +69,60 @@ export default {
                 hour12: true
             }).replace(',', '').replace(/(\d{4}),/, '$1 at');
 
-            const description = [
-                `### 〔 ⚠️ 〕 Staff Infraction Notice`,
-                ``,
-                `The following staff member has received a formal infraction. This notice has been issued by the Califirnia State Roleplay Staff Division and is recorded on their personnel file.`,
-                ``,
-                `**— Infraction Details —**`,
-                ``,
-                `> <:arrow:1516172552592949350> **Staff Member** ・ ${staffMember}`,
-                `> <:arrow:1516172552592949350> **Infraction** ・ ${infractionRole}`,
-                `> <:arrow:1516172552592949350> **Reason** ・ ${reason}`,
-                `> <:arrow:1516172552592949350> **Issued By** ・ ${supervisor}`,
-                `> <:arrow:1516172552592949350> **Issued At** ・ ${issuedAt}`,
-                ``,
-                `-# Find this infraction invalid? Please contact us in Internal Affairs Support.`,
-            ].join('\n');
+            const container = new ContainerBuilder()
+                .setAccentColor(0x1a1a1a)
+                .addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL(
+                            'https://cdn.discordapp.com/attachments/1493023004802679007/1516162356617547937/Copy_of_Copy_of_Free_Release_Banner_1.png?ex=6a31a3ba&is=6a30523a&hm=57a86c8192b237d4bd4a4492d752c96fc555d3b7f15e46dbfcb2e72e14a1593d'
+                        )
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `### 〔 ⚠️ 〕 Staff Infraction Notice`
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `The following staff member has received a formal infraction. This notice has been issued by the Califirnia State Roleplay Staff Division and is recorded on their personnel file.`
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        [
+                            `**— Infraction Details —**`,
+                            ``,
+                            `<:arrow:1516172552592949350> **Staff Member** ・ ${staffMember}`,
+                            `<:arrow:1516172552592949350> **Infraction** ・ ${infractionRole}`,
+                            `<:arrow:1516172552592949350> **Reason** ・ ${reason}`,
+                            `<:arrow:1516172552592949350> **Issued By** ・ ${supervisor}`,
+                            `<:arrow:1516172552592949350> **Issued At** ・ ${issuedAt}`,
+                        ].join('\n')
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `-# Find this infraction invalid? Please contact us in Internal Affairs Support.\n-# ⭐ Califirnia State Roleplay  •  Staff Division`
+                    )
+                );
 
-            const embed = createEmbed({
-                description,
-                color: 0x1a1a1a,
-                footer: '⭐ Califirnia State Roleplay  •  Staff Division',
-                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516162356617547937/Copy_of_Copy_of_Free_Release_Banner_1.png?ex=6a31a3ba&is=6a30523a&hm=57a86c8192b237d4bd4a4492d752c96fc555d3b7f15e46dbfcb2e72e14a1593d',
-                timestamp: true
+            await interaction.channel.send({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2,
             });
-
-            await interaction.channel.send({ embeds: [embed] });
 
             // Assign the infraction role to the staff member
             try {

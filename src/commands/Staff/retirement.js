@@ -1,5 +1,14 @@
-import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import {
+    SlashCommandBuilder,
+    MessageFlags,
+    PermissionFlagsBits,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -61,29 +70,60 @@ export default {
                 hour12: true
             }).replace(',', '').replace(/(\d{4}),/, '$1 at');
 
-            const description = [
-                `### 〔 🎗️ 〕 Staff Retirement Announcement`,
-                ``,
-                `On behalf of the Califirnia State Roleplay Staff Division, we would like to thank ${staffMember} for their dedicated service and contributions. We wish them all the best in their future endeavours.`,
-                ``,
-                `**— Retirement Details —**`,
-                ``,
-                `> <:arrow:1516172552592949350> **Staff Member** ・ ${staffMember}`,
-                `> <:arrow:1516172552592949350> **Final Rank** ・ ${finalRank}`,
-                `> <:arrow:1516172552592949350> **Reason** ・ ${reason}`,
-                `> <:arrow:1516172552592949350> **Approved By** ・ ${supervisor}`,
-                `> <:arrow:1516172552592949350> **Issued At** ・ ${issuedAt}`,
-            ].join('\n');
+            const container = new ContainerBuilder()
+                .setAccentColor(0x1a1a1a)
+                .addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL(
+                            'https://cdn.discordapp.com/attachments/1493023004802679007/1516162282663710730/Copy_of_Copy_of_Copy_of_Free_Release_Banner.png?ex=6a31a3a9&is=6a305229&hm=80d58b0354ff30b5d39c47d68b2cb2c8f965546929a9797b3de92cc7666a622b'
+                        )
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `### 〔 🎗️ 〕 Staff Retirement Announcement`
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `On behalf of the Califirnia State Roleplay Staff Division, we would like to thank ${staffMember} for their dedicated service and contributions. We wish them all the best in their future endeavours.`
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        [
+                            `**— Retirement Details —**`,
+                            ``,
+                            `<:arrow:1516172552592949350> **Staff Member** ・ ${staffMember}`,
+                            `<:arrow:1516172552592949350> **Final Rank** ・ ${finalRank}`,
+                            `<:arrow:1516172552592949350> **Reason** ・ ${reason}`,
+                            `<:arrow:1516172552592949350> **Approved By** ・ ${supervisor}`,
+                            `<:arrow:1516172552592949350> **Issued At** ・ ${issuedAt}`,
+                        ].join('\n')
+                    )
+                )
+                .addSeparatorComponents(
+                    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+                )
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `-# ⭐ Califirnia State Roleplay  •  Staff Division`
+                    )
+                );
 
-            const embed = createEmbed({
-                description,
-                color: 0x1a1a1a,
-                footer: '⭐ Califirnia State Roleplay  •  Staff Division',
-                image: 'https://cdn.discordapp.com/attachments/1493023004802679007/1516162282663710730/Copy_of_Copy_of_Copy_of_Free_Release_Banner.png?ex=6a31a3a9&is=6a305229&hm=80d58b0354ff30b5d39c47d68b2cb2c8f965546929a9797b3de92cc7666a622b',
-                timestamp: true
+            await interaction.channel.send({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2,
             });
-
-            await interaction.channel.send({ embeds: [embed] });
 
             await InteractionHelper.safeEditReply(interaction, {
                 content: '✅ Retirement notice posted successfully!'
