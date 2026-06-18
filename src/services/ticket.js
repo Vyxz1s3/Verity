@@ -69,9 +69,22 @@ export async function getUserTicketCount(guildId, userId) {
   }
 }
 
-export async function createTicket(guild, member, categoryId, reason = 'No reason provided', priority = 'none') {
+/**
+ * @param {Guild}  guild
+ * @param {GuildMember} member
+ * @param {string|null} categoryId  - Override category (null = use config)
+ * @param {string} reason
+ * @param {string} priority
+ * @param {object|null} configOverride - Optional partial config to merge over
+ *   the guild config (used by multi-panel ticket creation to apply per-panel
+ *   settings such as staffRoleId, closedCategoryId, maxTicketsPerUser, etc.)
+ */
+export async function createTicket(guild, member, categoryId, reason = 'No reason provided', priority = 'none', configOverride = null) {
   try {
-    const config = await getGuildConfig(guild.client, guild.id);
+    const baseConfig = await getGuildConfig(guild.client, guild.id);
+    // Merge the override on top of the base config so callers can supply
+    // panel-specific settings without touching the persisted guild config.
+    const config = configOverride ? { ...baseConfig, ...configOverride } : baseConfig;
     const ticketConfig = config.tickets || {};
     
     const maxTicketsPerUser = config.maxTicketsPerUser ?? 3;
@@ -84,14 +97,17 @@ export async function createTicket(guild, member, categoryId, reason = 'No reaso
       };
     }
     
-    let category = categoryId ? 
-      guild.channels.cache.get(categoryId) :
+    // Use the (possibly overridden) categoryId
+    const effectiveCategoryId = categoryId ?? config.ticketCategoryId ?? null;
+
+    let category = effectiveCategoryId ? 
+      guild.channels.cache.get(effectiveCategoryId) :
       guild.channels.cache.find(c => 
         c.type === ChannelType.GuildCategory && 
         c.name.toLowerCase().includes('tickets')
       );
     
-    if (!category && !categoryId) {
+    if (!category && !effectiveCategoryId) {
       category = await guild.channels.create({
         name: 'Tickets',
         type: ChannelType.GuildCategory,
@@ -154,6 +170,9 @@ export async function createTicket(guild, member, categoryId, reason = 'No reaso
       claimedBy: null,
       priority: priority || 'none',
       reason,
+      // Store which panel created this ticket so close/reopen can look up
+      // the correct panel-specific closed category.
+      panelNumber: config._activePanelNumber || null,
     };
     
     await saveTicketData(guild.id, channel.id, ticketData);
@@ -265,8 +284,16 @@ export async function closeTicket(channel, closer, reason = 'No reason provided'
     }
     
     const config = await getGuildConfig(channel.client, channel.guild.id);
-    const dmOnClose = config.dmOnClose !== false;
-    const closedCategoryId = config.ticketClosedCategoryId || null;
+
+    // Resolve panel-specific settings when the ticket was created via a panel
+    const panelNumber = ticketData.panelNumber || null;
+    const panelConfig = panelNumber ? config[`ticketPanel${panelNumber}Config`] : null;
+
+    const dmOnClose = panelConfig?.dmOnClose ?? config.dmOnClose ?? true;
+    const closedCategoryId =
+        panelConfig?.closedCategoryId ||
+        config.ticketClosedCategoryId ||
+        null;
     let movedToClosedCategory = false;
     
     ticketData.status = 'closed';
@@ -595,7 +622,12 @@ export async function reopenTicket(channel, reopener) {
     }
 
     const config = await getGuildConfig(channel.client, channel.guild.id);
-    const openCategoryId = config.ticketCategoryId || null;
+
+    // Use panel-specific open category when available
+    const panelNumber = ticketData.panelNumber || null;
+    const panelConfig = panelNumber ? config[`ticketPanel${panelNumber}Config`] : null;
+    const openCategoryId = panelConfig?.categoryId || config.ticketCategoryId || null;
+
     let movedToOpenCategory = false;
     let openCategoryMoveFailed = false;
     
