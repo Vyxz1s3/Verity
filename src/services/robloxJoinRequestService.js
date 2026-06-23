@@ -1,8 +1,7 @@
 import { logger } from '../utils/logger.js';
 import axios from 'axios';
 
-const ROBLOX_API_BASE = 'https://apis.roblox.com';
-const ROBLOX_WEB_BASE = 'https://www.roblox.com';
+const ROBLOX_API = 'https://apis.roblox.com';
 
 class RobloxJoinRequestHandler {
   constructor() {
@@ -15,19 +14,19 @@ class RobloxJoinRequestHandler {
 
   async authenticate() {
     try {
-      // Check if we need to re-authenticate
       if (this.cookie && Date.now() - this.lastAuthTime < this.authCooldown) {
         return true;
       }
 
       if (!this.username || !this.password) {
-        logger.error('🎮 Roblox credentials not configured - check ROBLOX_USERNAME and ROBLOX_PASSWORD');
+        logger.error('🎮 Roblox credentials missing');
         return false;
       }
 
-      logger.info('🎮 Attempting Roblox authentication...');
+      logger.info('🎮 Authenticating with Roblox...');
+      
       const response = await axios.post(
-        `${ROBLOX_WEB_BASE}/login/v1/login`,
+        'https://auth.roblox.com/v2/login',
         {
           ctype: 'Username',
           cvalue: this.username,
@@ -38,25 +37,25 @@ class RobloxJoinRequestHandler {
             'Content-Type': 'application/json',
             'User-Agent': 'Mozilla/5.0'
           },
-          withCredentials: true
+          withCredentials: true,
+          validateStatus: () => true
         }
       );
 
-      if (response.data.user) {
-        // Extract cookies from response
-        const setCookieHeader = response.headers['set-cookie'];
-        if (setCookieHeader) {
-          this.cookie = setCookieHeader.join('; ');
+      if (response.status === 200 && response.data.user) {
+        const cookies = response.headers['set-cookie'];
+        if (cookies) {
+          this.cookie = cookies.join('; ');
           this.lastAuthTime = Date.now();
-          logger.info('🎮 Successfully authenticated with Roblox');
+          logger.info('🎮 Roblox auth successful');
           return true;
         }
       }
 
-      logger.error('🎮 Failed to authenticate with Roblox: No user data in response');
+      logger.error('🎮 Roblox auth failed:', response.status, response.data?.errors?.[0]?.message);
       return false;
     } catch (error) {
-      logger.error('🎮 Roblox authentication error:', error.response?.status, error.message);
+      logger.error('🎮 Auth error:', error.message);
       return false;
     }
   }
@@ -64,25 +63,30 @@ class RobloxJoinRequestHandler {
   async getGroupJoinRequests(groupId) {
     try {
       if (!await this.authenticate()) {
-        logger.warn(`🎮 Could not authenticate for group ${groupId}`);
         return [];
       }
 
       const response = await axios.get(
-        `${ROBLOX_API_BASE}/v1/groups/${groupId}/join-requests`,
+        `${ROBLOX_API}/v1/groups/${groupId}/join-requests`,
         {
           headers: {
             'Cookie': this.cookie,
             'User-Agent': 'Mozilla/5.0'
-          }
+          },
+          validateStatus: () => true
         }
       );
 
-      const requests = response.data.data || [];
-      logger.info(`🎮 Found ${requests.length} join requests for group ${groupId}`);
-      return requests;
+      if (response.status === 200) {
+        const requests = response.data.data || [];
+        logger.info(`🎮 Group ${groupId}: ${requests.length} join requests`);
+        return requests;
+      }
+
+      logger.warn(`🎮 Failed to fetch requests for group ${groupId}: ${response.status}`);
+      return [];
     } catch (error) {
-      logger.error(`🎮 Error fetching join requests for group ${groupId}:`, error.response?.status, error.message);
+      logger.error(`🎮 Error fetching requests:`, error.message);
       return [];
     }
   }
@@ -90,85 +94,65 @@ class RobloxJoinRequestHandler {
   async getUserInfo(userId) {
     try {
       const response = await axios.get(
-        `${ROBLOX_API_BASE}/v1/users/${userId}`,
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0'
-          }
-        }
+        `${ROBLOX_API}/v1/users/${userId}`,
+        { validateStatus: () => true }
       );
 
-      return response.data;
+      return response.status === 200 ? response.data : null;
     } catch (error) {
-      logger.error(`🎮 Error fetching user info for ${userId}:`, error.response?.status, error.message);
-      return null;
-    }
-  }
-
-  async getUserDetails(userId) {
-    try {
-      const response = await axios.get(
-        `${ROBLOX_WEB_BASE}/users/profile/profile-data?userId=${userId}`,
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0'
-          }
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      logger.error(`🎮 Error fetching user details for ${userId}:`, error.response?.status, error.message);
+      logger.error(`🎮 Error fetching user ${userId}:`, error.message);
       return null;
     }
   }
 
   async acceptJoinRequest(groupId, userId) {
     try {
-      if (!await this.authenticate()) {
-        return false;
-      }
+      if (!await this.authenticate()) return false;
 
       const response = await axios.post(
-        `${ROBLOX_API_BASE}/v1/groups/${groupId}/join-requests/users/${userId}/accept`,
+        `${ROBLOX_API}/v1/groups/${groupId}/join-requests/users/${userId}/accept`,
         {},
         {
-          headers: {
-            'Cookie': this.cookie,
-            'User-Agent': 'Mozilla/5.0'
-          }
+          headers: { 'Cookie': this.cookie },
+          validateStatus: () => true
         }
       );
 
-      logger.info(`🎮 Accepted join request for user ${userId} in group ${groupId}`);
-      return true;
+      if (response.status === 200) {
+        logger.info(`🎮 Accepted user ${userId} to group ${groupId}`);
+        return true;
+      }
+
+      logger.warn(`🎮 Accept failed: ${response.status}`);
+      return false;
     } catch (error) {
-      logger.error(`🎮 Error accepting join request for user ${userId}:`, error.response?.status, error.message);
+      logger.error(`🎮 Accept error:`, error.message);
       return false;
     }
   }
 
   async denyJoinRequest(groupId, userId) {
     try {
-      if (!await this.authenticate()) {
-        return false;
-      }
+      if (!await this.authenticate()) return false;
 
       const response = await axios.post(
-        `${ROBLOX_API_BASE}/v1/groups/${groupId}/join-requests/users/${userId}/decline`,
+        `${ROBLOX_API}/v1/groups/${groupId}/join-requests/users/${userId}/decline`,
         {},
         {
-          headers: {
-            'Cookie': this.cookie,
-            'User-Agent': 'Mozilla/5.0'
-          }
+          headers: { 'Cookie': this.cookie },
+          validateStatus: () => true
         }
       );
 
-      logger.info(`🎮 Denied join request for user ${userId} in group ${groupId}`);
-      return true;
+      if (response.status === 200) {
+        logger.info(`🎮 Denied user ${userId} from group ${groupId}`);
+        return true;
+      }
+
+      logger.warn(`🎮 Deny failed: ${response.status}`);
+      return false;
     } catch (error) {
-      logger.error(`🎮 Error denying join request for user ${userId}:`, error.response?.status, error.message);
+      logger.error(`🎮 Deny error:`, error.message);
       return false;
     }
   }
@@ -176,136 +160,70 @@ class RobloxJoinRequestHandler {
 
 export const robloxHandler = new RobloxJoinRequestHandler();
 
+const processedRequests = new Set();
+
 export async function checkRobloxJoinRequests(client) {
   try {
-    const groupConfigs = [
-      {
-        groupId: process.env.ROBLOX_TEST_GROUP_ID,
-        channelEnvVar: 'ROBLOX_REQUESTS_CHANNEL_TEST',
-        name: 'Test Group'
-      },
-      {
-        groupId: process.env.ROBLOX_LASD_GROUP_ID,
-        channelEnvVar: 'ROBLOX_REQUESTS_CHANNEL_LASD',
-        name: 'LASD'
-      },
-      {
-        groupId: process.env.ROBLOX_CHP_GROUP_ID,
-        channelEnvVar: 'ROBLOX_REQUESTS_CHANNEL_CHP',
-        name: 'CHP'
-      },
-      {
-        groupId: process.env.ROBLOX_LAFD_GROUP_ID,
-        channelEnvVar: 'ROBLOX_REQUESTS_CHANNEL_LAFD',
-        name: 'LAFD'
-      }
+    const configs = [
+      { groupId: process.env.ROBLOX_TEST_GROUP_ID, channelId: process.env.ROBLOX_REQUESTS_CHANNEL_TEST, name: 'Test' },
+      { groupId: process.env.ROBLOX_LASD_GROUP_ID, channelId: process.env.ROBLOX_REQUESTS_CHANNEL_LASD, name: 'LASD' },
+      { groupId: process.env.ROBLOX_CHP_GROUP_ID, channelId: process.env.ROBLOX_REQUESTS_CHANNEL_CHP, name: 'CHP' },
+      { groupId: process.env.ROBLOX_LAFD_GROUP_ID, channelId: process.env.ROBLOX_REQUESTS_CHANNEL_LAFD, name: 'LAFD' }
     ];
 
-    for (const config of groupConfigs) {
-      if (!config.groupId) {
-        logger.debug(`🎮 Skipping ${config.name} - no group ID configured`);
-        continue;
-      }
-
-      const channelId = process.env[config.channelEnvVar];
-      if (!channelId) {
-        logger.warn(`🎮 No Discord channel configured for ${config.name} (${config.channelEnvVar})`);
-        continue;
-      }
+    for (const config of configs) {
+      if (!config.groupId || !config.channelId) continue;
 
       try {
-        const channel = await client.channels.fetch(channelId);
+        const channel = await client.channels.fetch(config.channelId).catch(() => null);
         if (!channel) {
-          logger.warn(`🎮 Channel ${channelId} not found for ${config.name}`);
+          logger.warn(`🎮 Channel not found: ${config.channelId}`);
           continue;
         }
 
-        logger.info(`🎮 Checking join requests for ${config.name} (Group: ${config.groupId})`);
         const requests = await robloxHandler.getGroupJoinRequests(config.groupId);
 
-        for (const request of requests) {
-          const userId = request.requester.userId;
-          logger.info(`🎮 Processing join request from user ${userId}`);
-          
-          const userInfo = await robloxHandler.getUserInfo(userId);
-          const userDetails = await robloxHandler.getUserDetails(userId);
+        for (const req of requests) {
+          const userId = req.requester.userId;
+          const reqKey = `${config.groupId}_${userId}`;
 
-          if (!userInfo) {
-            logger.warn(`🎮 Could not fetch info for user ${userId}`);
-            continue;
-          }
+          if (processedRequests.has(reqKey)) continue;
+          processedRequests.add(reqKey);
 
-          // Create embed with user info
+          const user = await robloxHandler.getUserInfo(userId);
+          if (!user) continue;
+
           const embed = {
             title: `🎮 Join Request - ${config.name}`,
             color: 0x1a1a1a,
             fields: [
-              {
-                name: 'Username & Display',
-                value: `${userInfo.name} (${userInfo.displayName})`,
-                inline: false
-              },
-              {
-                name: 'User ID',
-                value: `${userId}`,
-                inline: true
-              },
-              {
-                name: 'About',
-                value: userDetails?.aboutMe || 'No bio',
-                inline: false
-              },
-              {
-                name: 'Total Groups',
-                value: `${userDetails?.groupCount || 0}`,
-                inline: true
-              },
-              {
-                name: 'Account Created',
-                value: userInfo.created ? new Date(userInfo.created).toLocaleDateString() : 'Unknown',
-                inline: true
-              }
+              { name: 'Username', value: user.name, inline: true },
+              { name: 'Display Name', value: user.displayName, inline: true },
+              { name: 'User ID', value: `${userId}`, inline: true }
             ],
-            footer: {
-              text: `User ID: ${userId}`
-            },
+            footer: { text: `Group: ${config.groupId}` },
             timestamp: new Date()
           };
 
-          // Send message with buttons
-          const message = await channel.send({
+          await channel.send({
             embeds: [embed],
-            components: [
-              {
-                type: 1,
-                components: [
-                  {
-                    type: 2,
-                    style: 3, // Green
-                    label: 'Accept',
-                    custom_id: `roblox_accept_${config.groupId}_${userId}`,
-                    emoji: '✅'
-                  },
-                  {
-                    type: 2,
-                    style: 4, // Red
-                    label: 'Deny',
-                    custom_id: `roblox_deny_${config.groupId}_${userId}`,
-                    emoji: '❌'
-                  }
-                ]
-              }
-            ]
+            components: [{
+              type: 1,
+              components: [
+                { type: 2, style: 3, label: 'Accept', custom_id: `roblox_accept_${config.groupId}_${userId}`, emoji: '✅' },
+                { type: 2, style: 4, label: 'Deny', custom_id: `roblox_deny_${config.groupId}_${userId}`, emoji: '❌' }
+              ]
+            }]
           });
 
-          logger.info(`🎮 Posted join request for user ${userId} in ${config.name}`);
+          logger.info(`🎮 Posted request from ${user.name} (${userId}) to ${config.name}`);
         }
       } catch (error) {
-        logger.error(`🎮 Error checking join requests for ${config.name}:`, error.message);
+        logger.error(`🎮 Error checking ${config.name}:`, error.message);
       }
     }
   } catch (error) {
-    logger.error('🎮 Error in checkRobloxJoinRequests:', error.message);
+    logger.error('🎮 checkRobloxJoinRequests error:', error.message);
   }
 }
 
