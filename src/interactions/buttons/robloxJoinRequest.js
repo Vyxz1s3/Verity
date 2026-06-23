@@ -2,6 +2,7 @@ import { robloxHandler } from '../../services/robloxJoinRequestService.js';
 import { logger } from '../../utils/logger.js';
 
 export default {
+  name: 'robloxJoinRequest',
   customId: /^roblox_(accept|deny)_\d+_\d+$/,
   async execute(interaction) {
     try {

@@ -21,10 +21,11 @@ class RobloxJoinRequestHandler {
       }
 
       if (!this.username || !this.password) {
-        logger.error('Roblox credentials not configured');
+        logger.error('🎮 Roblox credentials not configured - check ROBLOX_USERNAME and ROBLOX_PASSWORD');
         return false;
       }
 
+      logger.info('🎮 Attempting Roblox authentication...');
       const response = await axios.post(
         `${ROBLOX_WEB_BASE}/login/v1/login`,
         {
@@ -47,15 +48,15 @@ class RobloxJoinRequestHandler {
         if (setCookieHeader) {
           this.cookie = setCookieHeader.join('; ');
           this.lastAuthTime = Date.now();
-          logger.info('Successfully authenticated with Roblox');
+          logger.info('🎮 Successfully authenticated with Roblox');
           return true;
         }
       }
 
-      logger.error('Failed to authenticate with Roblox: No user data');
+      logger.error('🎮 Failed to authenticate with Roblox: No user data in response');
       return false;
     } catch (error) {
-      logger.error('Roblox authentication error:', error.message);
+      logger.error('🎮 Roblox authentication error:', error.response?.status, error.message);
       return false;
     }
   }
@@ -63,6 +64,7 @@ class RobloxJoinRequestHandler {
   async getGroupJoinRequests(groupId) {
     try {
       if (!await this.authenticate()) {
+        logger.warn(`🎮 Could not authenticate for group ${groupId}`);
         return [];
       }
 
@@ -76,9 +78,11 @@ class RobloxJoinRequestHandler {
         }
       );
 
-      return response.data.data || [];
+      const requests = response.data.data || [];
+      logger.info(`🎮 Found ${requests.length} join requests for group ${groupId}`);
+      return requests;
     } catch (error) {
-      logger.error(`Error fetching join requests for group ${groupId}:`, error.message);
+      logger.error(`🎮 Error fetching join requests for group ${groupId}:`, error.response?.status, error.message);
       return [];
     }
   }
@@ -96,7 +100,7 @@ class RobloxJoinRequestHandler {
 
       return response.data;
     } catch (error) {
-      logger.error(`Error fetching user info for ${userId}:`, error.message);
+      logger.error(`🎮 Error fetching user info for ${userId}:`, error.response?.status, error.message);
       return null;
     }
   }
@@ -114,7 +118,7 @@ class RobloxJoinRequestHandler {
 
       return response.data;
     } catch (error) {
-      logger.error(`Error fetching user details for ${userId}:`, error.message);
+      logger.error(`🎮 Error fetching user details for ${userId}:`, error.response?.status, error.message);
       return null;
     }
   }
@@ -136,10 +140,10 @@ class RobloxJoinRequestHandler {
         }
       );
 
-      logger.info(`Accepted join request for user ${userId} in group ${groupId}`);
+      logger.info(`🎮 Accepted join request for user ${userId} in group ${groupId}`);
       return true;
     } catch (error) {
-      logger.error(`Error accepting join request for user ${userId}:`, error.message);
+      logger.error(`🎮 Error accepting join request for user ${userId}:`, error.response?.status, error.message);
       return false;
     }
   }
@@ -161,10 +165,10 @@ class RobloxJoinRequestHandler {
         }
       );
 
-      logger.info(`Denied join request for user ${userId} in group ${groupId}`);
+      logger.info(`🎮 Denied join request for user ${userId} in group ${groupId}`);
       return true;
     } catch (error) {
-      logger.error(`Error denying join request for user ${userId}:`, error.message);
+      logger.error(`🎮 Error denying join request for user ${userId}:`, error.response?.status, error.message);
       return false;
     }
   }
@@ -198,29 +202,38 @@ export async function checkRobloxJoinRequests(client) {
     ];
 
     for (const config of groupConfigs) {
-      if (!config.groupId) continue;
+      if (!config.groupId) {
+        logger.debug(`🎮 Skipping ${config.name} - no group ID configured`);
+        continue;
+      }
 
       const channelId = process.env[config.channelEnvVar];
       if (!channelId) {
-        logger.warn(`No Discord channel configured for ${config.name} (${config.channelEnvVar})`);
+        logger.warn(`🎮 No Discord channel configured for ${config.name} (${config.channelEnvVar})`);
         continue;
       }
 
       try {
         const channel = await client.channels.fetch(channelId);
         if (!channel) {
-          logger.warn(`Channel ${channelId} not found for ${config.name}`);
+          logger.warn(`🎮 Channel ${channelId} not found for ${config.name}`);
           continue;
         }
 
+        logger.info(`🎮 Checking join requests for ${config.name} (Group: ${config.groupId})`);
         const requests = await robloxHandler.getGroupJoinRequests(config.groupId);
 
         for (const request of requests) {
           const userId = request.requester.userId;
+          logger.info(`🎮 Processing join request from user ${userId}`);
+          
           const userInfo = await robloxHandler.getUserInfo(userId);
           const userDetails = await robloxHandler.getUserDetails(userId);
 
-          if (!userInfo) continue;
+          if (!userInfo) {
+            logger.warn(`🎮 Could not fetch info for user ${userId}`);
+            continue;
+          }
 
           // Create embed with user info
           const embed = {
@@ -285,14 +298,14 @@ export async function checkRobloxJoinRequests(client) {
             ]
           });
 
-          logger.info(`Posted join request for user ${userId} in ${config.name}`);
+          logger.info(`🎮 Posted join request for user ${userId} in ${config.name}`);
         }
       } catch (error) {
-        logger.error(`Error checking join requests for ${config.name}:`, error.message);
+        logger.error(`🎮 Error checking join requests for ${config.name}:`, error.message);
       }
     }
   } catch (error) {
-    logger.error('Error in checkRobloxJoinRequests:', error.message);
+    logger.error('🎮 Error in checkRobloxJoinRequests:', error.message);
   }
 }
 
