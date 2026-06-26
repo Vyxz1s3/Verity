@@ -1,5 +1,7 @@
 import { SlashCommandBuilder, ChannelType } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+import { executeCommand } from '../../services/erlcApi.js';
+import { getErlcConfig } from '../../utils/erlcConfig.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -11,12 +13,6 @@ export default {
         .setDescription('Setup ERLC server API')
         .addStringOption(opt =>
           opt
-            .setName('server_id')
-            .setDescription('ERLC private server ID')
-            .setRequired(true)
-        )
-        .addStringOption(opt =>
-          opt
             .setName('api_key')
             .setDescription('Server API key for owner commands')
             .setRequired(true)
@@ -24,30 +20,19 @@ export default {
         .addChannelOption(opt =>
           opt
             .setName('log_channel')
-            .setDescription('Channel to log interrogations')
+            .setDescription('Channel to log commands')
             .addChannelTypes(ChannelType.GuildText)
-            .setRequired(true)
+            .setRequired(false)
         )
     )
     .addSubcommand(sub =>
       sub
-        .setName('status')
-        .setDescription('Get current server status')
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('interrogate')
-        .setDescription('Start an interrogation')
-        .addUserOption(opt =>
-          opt
-            .setName('suspect')
-            .setDescription('Suspect being interrogated')
-            .setRequired(true)
-        )
+        .setName('cmds')
+        .setDescription('Execute ER:LC in-game commands')
         .addStringOption(opt =>
           opt
-            .setName('charges')
-            .setDescription('Charges against suspect')
+            .setName('command')
+            .setDescription('Command to execute (e.g., :load username, :kick username reason)')
             .setRequired(true)
         )
     ),
@@ -57,17 +42,14 @@ export default {
 
     if (subcommand === 'setup') {
       return handleSetup(interaction);
-    } else if (subcommand === 'status') {
-      return handleStatus(interaction);
-    } else if (subcommand === 'interrogate') {
-      return handleInterrogate(interaction);
+    } else if (subcommand === 'cmds') {
+      return handleCommand(interaction);
     }
   }
 };
 
 async function handleSetup(interaction) {
   try {
-    const serverId = interaction.options.getString('server_id');
     const apiKey = interaction.options.getString('api_key');
     const logChannel = interaction.options.getChannel('log_channel');
 
@@ -82,23 +64,23 @@ async function handleSetup(interaction) {
     // Store config in guild data (you'd use your database here)
     const guildId = interaction.guildId;
     const config = {
-      serverId,
       apiKey,
-      logChannelId: logChannel.id,
+      logChannelId: logChannel?.id || null,
       setupBy: interaction.user.id,
       setupAt: new Date()
     };
 
     // TODO: Save to database
-    logger.info(`✅ ERLC setup for guild ${guildId}: Server ${serverId}`);
+    logger.info(`✅ ERLC setup for guild ${guildId}`);
 
     const embed = {
       title: '✅ ERLC Server Setup Complete',
       color: 0x00ff00,
       fields: [
-        { name: 'Server ID', value: serverId, inline: true },
-        { name: 'Log Channel', value: `<#${logChannel.id}>`, inline: true },
-        { name: 'Setup By', value: `<@${interaction.user.id}>`, inline: false }
+        { name: 'API Key', value: '••••••••' + apiKey.slice(-4), inline: true },
+        { name: 'Log Channel', value: logChannel ? `<#${logChannel.id}>` : 'Not set', inline: true },
+        { name: 'Setup By', value: `<@${interaction.user.id}>`, inline: false },
+        { name: 'Usage', value: 'Use `/erlc cmds` to execute in-game commands', inline: false }
       ],
       timestamp: new Date()
     };
@@ -113,58 +95,77 @@ async function handleSetup(interaction) {
   }
 }
 
-async function handleStatus(interaction) {
+async function handleCommand(interaction) {
   try {
     await interaction.deferReply();
 
-    // TODO: Fetch actual server status
-    const embed = {
-      title: '🎮 ERLC Server Status',
-      color: 0x1a1a1a,
-      fields: [
-        { name: 'Total Players', value: '0', inline: true },
-        { name: '👮 Police/Sheriff', value: '0', inline: true },
-        { name: '🚒 Firefighters', value: '0', inline: true },
-        { name: '👤 Civilians', value: '0', inline: true },
-        { name: 'Server Status', value: '🟢 Online', inline: true },
-        { name: 'Ping', value: '0ms', inline: true }
-      ],
-      timestamp: new Date()
-    };
+    const commandInput = interaction.options.getString('command');
+    const config = await getErlcConfig(interaction.guildId);
 
-    await interaction.editReply({ embeds: [embed] });
+    if (!config?.apiKey) {
+      return interaction.editReply({
+        content: '❌ ERLC server not configured. Use `/erlc setup` first.',
+        ephemeral: true
+      });
+    }
+
+    // Validate command format (must start with :)
+    if (!commandInput.startsWith(':')) {
+      return interaction.editReply({
+        content: '❌ Command must start with `:` (e.g., `:load username`)',
+        ephemeral: true
+      });
+    }
+
+    // Execute the command
+    const result = await executeCommand(config.apiKey, commandInput);
+
+    if (result.success) {
+      const embed = {
+        title: '✅ Command Executed',
+        color: 0x00ff00,
+        fields: [
+          { name: 'Command', value: `\`${commandInput}\``, inline: false },
+          { name: 'Executed By', value: `<@${interaction.user.id}>`, inline: true },
+          { name: 'Status', value: 'Success', inline: true }
+        ],
+        timestamp: new Date()
+      };
+
+      await interaction.editReply({ embeds: [embed] });
+      logger.info(`✅ ERLC command executed: ${commandInput} by ${interaction.user.tag}`);
+
+      // Log to channel if configured
+      if (config.logChannelId) {
+        try {
+          const logChannel = await interaction.guild.channels.fetch(config.logChannelId);
+          if (logChannel) {
+            await logChannel.send({
+              embeds: [{
+                title: '📋 ERLC Command Log',
+                color: 0x0099ff,
+                fields: [
+                  { name: 'Command', value: `\`${commandInput}\``, inline: false },
+                  { name: 'Executed By', value: `<@${interaction.user.id}>`, inline: true },
+                  { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:T>`, inline: true }
+                ]
+              }]
+            });
+          }
+        } catch (err) {
+          logger.warn('Could not log to channel:', err.message);
+        }
+      }
+    } else {
+      await interaction.editReply({
+        content: `❌ Command failed: ${result.error}`,
+        ephemeral: true
+      });
+    }
   } catch (err) {
-    logger.error('❌ Status error:', err.message);
-    await interaction.editReply('❌ Failed to fetch status').catch(() => {});
-  }
-}
-
-async function handleInterrogate(interaction) {
-  try {
-    const suspect = interaction.options.getUser('suspect');
-    const charges = interaction.options.getString('charges');
-
-    const embed = {
-      title: '🚔 Interrogation Started',
-      color: 0xff6600,
-      fields: [
-        { name: 'Suspect', value: `<@${suspect.id}>`, inline: true },
-        { name: 'Officer', value: `<@${interaction.user.id}>`, inline: true },
-        { name: 'Charges', value: charges, inline: false },
-        { name: 'Started At', value: `<t:${Math.floor(Date.now() / 1000)}:T>`, inline: true }
-      ],
-      footer: { text: `Interrogation ID: ${Date.now()}` },
-      timestamp: new Date()
-    };
-
-    await interaction.reply({ embeds: [embed] });
-
-    // TODO: Log to ERLC log channel
-    logger.info(`🚔 Interrogation started: ${suspect.tag} - Charges: ${charges}`);
-  } catch (err) {
-    logger.error('❌ Interrogate error:', err.message);
-    await interaction.reply({
-      content: '❌ Failed to start interrogation',
+    logger.error('Command execution error:', err.message);
+    await interaction.editReply({
+      content: '❌ An error occurred',
       ephemeral: true
     }).catch(() => {});
   }
