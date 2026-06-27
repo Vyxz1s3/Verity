@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
 
-const ERLC_API_BASE = 'https://api.erlc.gg/v1';
+const ERLC_API_BASE = 'https://api.erlc.gg';
 
 /**
  * Execute a command on the ER:LC server
