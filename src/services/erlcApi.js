@@ -1,7 +1,12 @@
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
 
-const ERLC_API_BASE = 'https://api.erlc.gg';
+// Try multiple endpoint variations
+const ENDPOINTS = [
+  'https://api.erlc.gg/commands',
+  'https://api.erlc.gg/v1/commands',
+  'https://api.erlc.gg/api/commands',
+];
 
 /**
  * Execute a command on the ER:LC server
@@ -15,30 +20,36 @@ export async function executeCommand(apiKey, command) {
       throw new Error('API key not configured');
     }
 
-    const url = `${ERLC_API_BASE}/commands`;
     const payload = { command };
     const headers = {
       'server-key': apiKey,
       'Content-Type': 'application/json'
     };
 
-    logger.info(`🔍 DEBUG: Sending request to ${url}`);
-    logger.info(`🔍 DEBUG: Command: ${command}`);
-    logger.info(`🔍 DEBUG: Headers: server-key=${apiKey.slice(0, 4)}...`);
+    // Try each endpoint until one works
+    let lastError = null;
+    for (const url of ENDPOINTS) {
+      try {
+        logger.info(`🔍 Trying endpoint: ${url}`);
+        const response = await axios.post(url, payload, {
+          headers,
+          timeout: 5000
+        });
 
-    const response = await axios.post(url, payload, {
-      headers,
-      timeout: 10000
-    });
+        logger.info(`✅ ERLC Command executed: ${command} (${url})`);
+        return { success: true, data: response.data };
+      } catch (error) {
+        lastError = error;
+        logger.warn(`⚠️ Endpoint failed: ${url} - ${error.response?.status || error.message}`);
+        continue;
+      }
+    }
 
-    logger.info(`✅ ERLC Command executed: ${command}`);
-    return { success: true, data: response.data };
+    // All endpoints failed
+    throw lastError || new Error('All endpoints failed');
   } catch (error) {
     logger.error(`❌ ERLC Command failed: ${command}`);
-    logger.error(`❌ Status: ${error.response?.status}`);
-    logger.error(`❌ URL: ${error.config?.url}`);
     logger.error(`❌ Error: ${error.message}`);
-    logger.error(`❌ Response: ${JSON.stringify(error.response?.data)}`);
     
     return {
       success: false,
