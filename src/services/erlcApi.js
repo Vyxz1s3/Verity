@@ -15,22 +15,31 @@ export async function executeCommand(apiKey, command) {
       throw new Error('API key not configured');
     }
 
-    const response = await axios.post(
-      `${ERLC_API_BASE}/commands`,
-      { command },
-      {
-        headers: {
-          'server-key': apiKey,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      }
-    );
+    const url = `${ERLC_API_BASE}/commands`;
+    const payload = { command };
+    const headers = {
+      'server-key': apiKey,
+      'Content-Type': 'application/json'
+    };
+
+    logger.info(`🔍 DEBUG: Sending request to ${url}`);
+    logger.info(`🔍 DEBUG: Command: ${command}`);
+    logger.info(`🔍 DEBUG: Headers: server-key=${apiKey.slice(0, 4)}...`);
+
+    const response = await axios.post(url, payload, {
+      headers,
+      timeout: 10000
+    });
 
     logger.info(`✅ ERLC Command executed: ${command}`);
     return { success: true, data: response.data };
   } catch (error) {
-    logger.error(`❌ ERLC Command failed: ${command}`, error.message);
+    logger.error(`❌ ERLC Command failed: ${command}`);
+    logger.error(`❌ Status: ${error.response?.status}`);
+    logger.error(`❌ URL: ${error.config?.url}`);
+    logger.error(`❌ Error: ${error.message}`);
+    logger.error(`❌ Response: ${JSON.stringify(error.response?.data)}`);
+    
     return {
       success: false,
       error: error.response?.data?.message || error.message
